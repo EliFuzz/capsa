@@ -1,0 +1,16 @@
+[package]
+name = "core"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[features]
+default = []
+core-sql = ["dep:core-sql"]
+core-regex = ["dep:core-regex"]
+
+[dependencies]
+core-sql = { path = "sql", optional = true }
+core-regex = { path = "regex", optional = true }

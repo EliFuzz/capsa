@@ -1,0 +1,9 @@
+mod data;
+
+pub use data::{
+    RULE_COUNT, RULES, Rule, VECTORSCAN_DOTALL_FLAG, VECTORSCAN_PATTERN_FLAGS,
+    VECTORSCAN_PATTERN_IDS, VECTORSCAN_PATTERNS,
+};
+
+#[cfg(test)]
+mod tests;

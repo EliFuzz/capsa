@@ -1,0 +1,361 @@
+message	pattern
+Secret column; hash, encrypt, or vault	\bCREATE\s+TABLE\b.+\b(password|secret|token|ssn|credit_card|cvv|pin)\b.+\b(VARCHAR|TEXT|CHAR)\b
+Self-approval risk; separate creator and approver	\bUPDATE\s+.*?\bSET\s+.*?\b(approved_by|status)\b.*?\bWHERE\b.*?\bcreated_by\b
+PII projection; select only needed masked fields	\bSELECT\b[^;]*\b(email|ssn|social_security|credit_card|cc_num|passport)\b
+Cross-database access; use approved integration	\b(DBLINK|OPENROWSET|CREATE\s+SERVER|CREATE\s+FOREIGN\s+TABLE)\b
+Large text column; compress or externalize	\bCREATE\s+TABLE\b[^;]*\b(VARCHAR\s*\(\s*\d{4,}\)|TEXT|CLOB|NVARCHAR\s*\(MAX\)|LONGTEXT)\b
+Distributed transaction; use saga or outbox	\b(BEGIN\s+DISTRIBUTED\s+TRANSACTION|XA\s+START|START\s+TRANSACTION\s+WITH\s+CONSISTENT\s+SNAPSHOT)\b
+Many indexes; consolidate by query plan	(CREATE\s+INDEX\s+\w+\s+ON\s+\w+[\s\S]*?){3,}
+Composite index order; use filter/sort order	\bCREATE\s+INDEX\s+\w+\s+ON\s+\w+\s*\((\w+)\s*,\s*(\w+)
+Unfiltered COUNT(*); cache, estimate, or filter	\bSELECT\s+COUNT\s*\(\s*\*\s*\)\s+FROM\b
+Cursor loop; use set-based or batched SQL	\bDECLARE\s+\w+\s+CURSOR\b
+Forced full scan; remove hint or add index	\b(?:FULL\s+TABLE\s+SCAN|full_table_scan)\b
+Bulk unload; restrict destination and columns	\bUNLOAD\b
+Lateral flatten; filter before expanding	\bLATERAL\s+FLATTEN\s*\(
+Subquery ORDER BY; move outward or add LIMIT	\(\s*SELECT\b[^)]+\bORDER\s+BY\b
+Row-by-row DML loop; batch by keys	\bWHILE\b[\s\S]*?\b(UPDATE|DELETE)\b[\s\S]*?\bEND\b
+DISTINCT after UNNEST; dedupe before expansion	\bSELECT\s+DISTINCT\b.*\bUNNEST\s*\(
+Regex match; use LIKE, ranges, or search index	\bREGEXP_(?:CONTAINS|EXTRACT|REPLACE)\s*\(
+Async mutation; batch or swap partitions	\bALTER\s+TABLE\s+\w+\s+(?:UPDATE|DELETE)\b
+Procedural loop; use set-based or batches	\bWHILE\s+[\(@].*\bBEGIN\b
+Nested-loop hint; remove or prove with indexes	\b(LOOP\s+JOIN|INNER\s+LOOP\s+JOIN|LEFT\s+LOOP\s+JOIN|OPTION\s*\(\s*LOOP\s+JOIN\s*\))
+Large IN list; join temp table, use multiple queries	\bIN\s*\(\s*(?:[^()]*,\s*){9,}
+Optimizer hint; remove unless plan-proven	\bOPTION\s*\(\s*(FORCE\s+ORDER|HASH\s+JOIN|MERGE\s+JOIN|LOOP\s+JOIN|FAST\s+\d+|RECOMPILE|OPTIMIZE\s+FOR|MAXDOP|QUERYTRACEON|USE\s+PLAN)\b
+Index hint; remove or revalidate stats	\b(FORCE\s+INDEX|USE\s+INDEX|IGNORE\s+INDEX|WITH\s*\(\s*INDEX\s*[=(])\b
+MAXDOP hint; use tested configuration	\bOPTION\s*\([^)]*MAXDOP\s+\d+
+Leading wildcard LIKE; use search/trigram index	\b(?:I?LIKE)\s+N?['\"]%[^'\"]*['\"]
+Large OFFSET; use keyset pagination	\bOFFSET\s+([1-9]\d{3,})\b
+Restrictive lock hint; narrow lock scope	\bWITH\s*\(\s*(TABLOCK|TABLOCKX|HOLDLOCK|XLOCK|PAGLOCK|ROWLOCK|UPDLOCK|SERIALIZABLE)\s*\)
+Dirty-read hint; use consistent isolation	\bWITH\s*\(\s*(NOLOCK|READUNCOMMITTED)\s*\)|\bREAD\s+UNCOMMITTED\b|\bSET\s+TRANSACTION\s+ISOLATION\s+LEVEL\s+READ\s+UNCOMMITTED\b
+Long transaction; split into small commits	\bBEGIN\s+(TRAN|TRANSACTION)\b[\s\S]{500,}?\b(COMMIT|ROLLBACK)\b
+SELECT INTO temp; filter, project, index	\bSELECT\b[^;]*\bINTO\s+[#@\w]+
+ORDER BY RAND(); sample by indexed key	\bORDER\s+BY\s+RAND\s*\(\s*\)
+ILIKE filter; add functional/trigram index	\bILIKE\b
+Comma join; use explicit JOIN ON	\bFROM\s+\w+\s*,\s*\w+\b
+NOT IN nullable; use NOT EXISTS	\bNOT\s+IN\s*\(\s*SELECT\b
+Scalar UDF; inline or use inline TVF	\b(SELECT|WHERE)\b[^;]*\bdbo\.\w+\s*\([^)]*\)
+Semi-structured filter; extract indexed typed column	\bWHERE\b.*:[\w.]+
+Semi-structured sort; materialize indexed sort key	\bORDER\s+BY\b.*:[\w.]+
+Broadcast join hint; remove unless build is small	/\*\+\s*BROADCAST\s*\(
+JOIN cast; align types or cast constants	\bJOIN\b.*\bCONVERT\s*\(|\bCAST\s*\(.*\bJOIN\b
+WAITFOR delay; move backoff to caller	\bWAITFOR\s+DELAY\b
+Repeated ALTER TABLE; combine compatible changes	(?:\bALTER\s+TABLE\s+[^;]+;[\s\S]*?){2,}
+SELECT *; list required columns	\bSELECT\s+(?:DISTINCT\s+|ALL\s+|TOP\s+\d+\s+)?\*(?:\s|,|$)
+Always-true filter; remove or replace predicate	\bWHERE\s+(?:1\s*=\s*1|TRUE)\b
+Low-selectivity IS NOT NULL; add selective filter	\bWHERE\s+\w+\s+IS\s+NOT\s+NULL\b
+Loose join; add precise ON predicate	\bCROSS\s+JOIN\b|\bNATURAL\s+(?:INNER\s+|LEFT\s+|RIGHT\s+|FULL\s+)?JOIN\b|\bFROM\s+[\w\."`]+(?:\s+(?:AS\s+)?[\w"`]+)?\s*,\s*[\w\."`]+
+Complex join predicate; use equality joins	\bJOIN\b[^;]*?\bON\b[\s\S]*?(?:\b(?:OR|LIKE|BETWEEN)\b|<>|!=|<|>|<=|>=)
+Subquery join; use CTE, temp table, or direct join	\bJOIN\s*\(\s*SELECT\b[\s\S]*\bJOIN\b
+Tautological join; add keys or CROSS JOIN	\bJOIN\b[\s\S]*?\bON\s+(?:1\s*=\s*1|TRUE|'[^']*'\s*=\s*'[^']*')\b
+DISTINCT with GROUP BY; remove DISTINCT	\bSELECT\s+DISTINCT\b[\s\S]*\bGROUP\s+BY\b
+UNION DISTINCT; use UNION ALL if possible	\bUNION\s+DISTINCT\b
+CREATE DATABASE; provision through migrations	\bCREATE\s+DATABASE\b
+Wide VARCHAR; choose realistic length	\bVARCHAR\s*\(\s*(?:65535|32000)\s*\)
+Wrapped predicate; make it sargable	\bWHERE\b[\s\S]*?\b(?:ISNULL|COALESCE|NVL|NVL2|IFNULL|UPPER|LOWER|RTRIM|LTRIM|ABS|ROUND|DATEADD|DATEDIFF|TO_CHAR|TO_DATE|TO_NUMBER|TO_TIMESTAMP|CAST|CONVERT)\s*\(\s*\w+
+Plan diagnostics; remove from production SQL	\b(?:EXPLAIN\s+PLAN\s+FOR|/\*\+\s*GATHER_PLAN_STATISTICS\s*\*/)\b
+Repeated CREATE INDEX; consolidate and build online	(?:\bCREATE\s+(?:UNIQUE\s+)?INDEX\b[\s\S]*\bON\s+\w+[\s\S]*?){2,}
+Repeated DML; batch in stable table order	\b(?:UPDATE|DELETE)\b[^;]*;[\s\S]*\b(?:UPDATE|DELETE)\b
+Foreign key; add supporting indexes	\bFOREIGN\s+KEY\b
+Boolean/status index; use partial composite index	\bCREATE\s+INDEX\b[\s\S]*\bON\s+\w+\s*\(\s*(?:is_[A-Za-z_]+|status|active|enabled)\s*\)
+Filter plus sort; add matching composite index	\bSELECT\b[\s\S]*\bWHERE\b[\s\S]*\bORDER\s+BY\b
+Low-selectivity index; replace with partial/composite	\bCREATE\s+INDEX\b[\s\S]*\bON\s+\w+\s*\(\s*(?:status|active|enabled|deleted_at)\s*\)
+Join then aggregate; aggregate before joining	\bJOIN\b[\s\S]*\bGROUP\s+BY\b[\s\S]*\bCOUNT\s*\(
+Trailing wildcard LIKE; use prefix/search index	\bLIKE\s+N?'[^%']+%'
+Many OR predicates; use IN, UNION, or lookup	\bWHERE\b[\s\S]*\bOR\b[\s\S]*\bOR\b[\s\S]*\bOR\b
+IN subquery; use EXISTS/JOIN with index	\bWHERE\b[\s\S]*\bIN\s*\(\s*SELECT\b
+Inequality filter; add selective predicate	\bSELECT\b[\s\S]*\bFROM\b[\s\S]*\bWHERE\b[\s\S]*\b(?:<>|!=)\b
+VACUUM INDEX_CLEANUP; schedule after bloat review	\bVACUUM\b[\s\S]*\bINDEX_CLEANUP\b
+Unqualified procedure; schema-qualify it	\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:PROC|PROCEDURE)\s+\[?\w+\]?\b
+EXPLAIN in SQL; move to diagnostics	\bEXPLAIN\s+(?:EXTENDED|CBO|AST|DEPENDENCY|AUTHORIZATION|LOCKS|VECTORIZATION|ANALYZE|LOGICAL|VERBOSE|COSTS)\b
+PROFILE in SQL; remove from production	(?:^|;)\s*PROFILE\b
+Too many joins; pre-aggregate or index keys	(?:\bJOIN\b[\s\S]*?){5,}
+Correlated subquery; rewrite as JOIN/EXISTS	\bSELECT\b[\s\S]*?\(\s*SELECT\b[^)]*\bWHERE\b[^)]*\b\w+\.\w+\s*=\s*\w+\.\w+
+OUT parameter; return result or reference mode	\b(?:IN\s+OUT|OUT)\s+\w+\s+\w+
+Maintenance pragma; run outside requests	\bPRAGMA\s+optimize\b
+Table hint syntax; use WITH(...) or remove	\bFROM\s+\w+\s+\((?:\s*NOLOCK|\s*READUNCOMMITTED|\s*READPAST|\s*ROWLOCK|\s*TABLOCK|\s*TABLOCKX|\s*UPDLOCK|\s*XLOCK|\s*HOLDLOCK|\s*NOWAIT|\s*READCOMMITTED|\s*REPEATABLEREAD|\s*SERIALIZABLE)\s*\)
+LIKE without wildcard; use =	\bLIKE\s+N?'[^%_']*'
+WITH RECOMPILE; remove unless skew-proven	\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:PROC|PROCEDURE|FUNCTION)\b[\s\S]*\bWITH\s+RECOMPILE\b
+Column layout; place fixed-width columns first	\bCREATE\s+TABLE\b[\s\S]*\b(?:SMALLINT|BOOL(?:EAN)?|CHAR\s*\(\s*\d+\s*\))\b[\s\S]*\b(?:BIGINT|TIMESTAMP|DOUBLE|NUMERIC)\b[\s\S]*\b(?:SMALLINT|BOOL(?:EAN)?)\b
+Compression option; validate CPU/storage tradeoff	\b(?:ROW_FORMAT\s*=\s*COMPRESSED|COMPRESSION\s*=\s*['\"]?\w+['\"]?|KEY_BLOCK_SIZE\s*=\s*\d+)\b
+Wide SELECT; project only needed columns	\bSELECT\b(?:\s+\w+(?:\.\w+)?\s*,){10,}
+EXISTS subquery; correlate on indexed keys	\b(?:NOT\s+)?EXISTS\s*\(\s*SELECT\b
+Expression subquery; precompute in CTE/JOIN	\b(?:COALESCE|IIF|CASE)\s*\([^)]*\(\s*SELECT\b|\bCASE\s+\(\s*SELECT\b
+DISTINCT join; fix cardinality or use EXISTS	\bSELECT\s+DISTINCT\b[\s\S]*\bJOIN\b
+Stats collection; run as maintenance	\b(?:ANALYZE\s+TABLE|RUNSTATS)\b
+Stats computation; schedule refresh	\bCOMPUTE\s+(?:STATISTICS|STATS)\b
+SELECT FOR UPDATE; lock indexed rows briefly	\bSELECT\b[\s\S]*\bFOR\s+UPDATE\b
+Partitioned query; filter by partition key	\bPARTITION\s+BY\b[\s\S]*?\bSELECT\b[\s\S]*?(?:;|$)
+Single-row INSERT; batch or bulk load	\bINSERT\s+INTO\s+\w+(?:\.\w+)*\s*(?:\([^)]*\))?\s*VALUES\s*\([^)]*\)\s*(?:;|$)
+UPDATE/DELETE subquery; rewrite as JOIN/USING	\b(UPDATE|DELETE)\b[\s\S]*\bWHERE\b[\s\S]*\b(IN|EXISTS)\s*\(\s*SELECT\b
+Complex routine; split or move logic	\b(CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE|CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION)\b[\s\S]*?(?:(?:\bIF\b|\bWHILE\b|\bCASE\b)[\s\S]*?){5,}
+TODO in SQL; resolve or track externally	\b(TODO|FIXME|XXX|HACK)\b
+Magic WHERE constant; parameterize or configure	WHERE\s+.*\s*=\s*[\'"].+[\'"]
+Hardcoded date; parameterize or derive interval	\bWHERE\b.+['\"](\d{4}-\d{2}-\d{2})['\"]
+UNION; use UNION ALL if possible	\bUNION\b
+STRAIGHT_JOIN; remove unless plan-proven	\bSTRAIGHT_JOIN\b
+Hungarian identifier; rename to snake_case	\b(str_|int_|i_|tbl_|v_|idx_|fk_|pk_)[a-z0-9_]+\b
+NULL equality; use IS NULL	\s*=\s*NULL\b|\bNULL\s*=\s*|!=\s*NULL\b|<>\s*NULL\b
+ROWNUM without order; order before limiting	\bROWNUM\b
+DUAL reference; remove where supported	\bFROM\s+DUAL\b
+Money float; use DECIMAL/NUMERIC	\b(price|amount|balance|cost|total|sum)\b.*?\b(FLOAT|REAL|DOUBLE)\b
+AUTOINCREMENT; use identity or sequence	\bAUTOINCREMENT\b
+EXISTS projection; use SELECT 1	\bEXISTS\s*\(\s*SELECT\s+\*
+Derived table; add alias	\bFROM\s*\(\s*SELECT\b[^)]+\)\s*WHERE\b
+Commented SQL; delete or move to tests	--\s*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE)\b|/\*.*?(SELECT|INSERT|UPDATE|DELETE)\b.*?\*/
+Hardcoded test data; move to fixtures	[\'"][^\'"]*(test|dummy|fake|temp|asdf|qwerty)[^\'"]*[\'"]
+ANSI_NULLS off; enable ANSI NULLs	\bSET\s+ANSI_NULLS\s+OFF\b
+QUOTED_IDENTIFIER off; enable it	\bSET\s+QUOTED_IDENTIFIER\s+OFF\b
+ELSE NULL; remove or set fallback	\bELSE\s+NULL\s+END\b
+COALESCE unreachable args; remove them	\bCOALESCE\s*\(\s*[^,()]+\s*,\s*(?:'[^']*'|\d+|TRUE|FALSE)\s*,
+Conflicting row limits; keep one	\bTOP\s+\d+\b[\s\S]*\bLIMIT\b|\bLIMIT\s+\d+\b[\s\S]*\bFETCH\s+FIRST\b|\bTOP\s+\d+\b[\s\S]*\bFETCH\s+FIRST\b
+Non-ASCII literal; bind as Unicode	'[^']*[^\x00-\x7f]+[^']*'
+CASE missing ELSE; add explicit ELSE	\bCASE\b[\s\S]*?\bEND\b
+String alias; use identifier quoting	\bAS\s+['"][^'"]+['"]
+Unqualified column; add table alias	\bFROM\s+\w+\s+(?:AS\s+)?\w+\s*,\s*\w+\b|\bJOIN\b[\s\S]*\bON\s+\w+\s*=\s*\w+\b
+Positional parameter; use named parameter	\?
+Non-ANSI inequality; use <>	!=
+Control character; remove it	[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]
+Expression missing alias; add stable alias	\bSELECT\b[\s\S]*?(?:\b\w+\s*\([^)]*\)|\w+\s*[+\-*/]\s*\w+)\s*(?:,|\bFROM\b)
+Redundant ASC; omit or standardize direction	\bORDER\s+BY\b[\s\S]*?\bASC\b
+GOTO; use structured control flow	\bGOTO\s+\w+\b
+Empty routine; implement or remove	\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:PROCEDURE|FUNCTION)\b[\s\S]*\bBEGIN\s*END\b
+Mixed AND/OR; add parentheses	\bWHERE\b[^;()]*\bAND\b[^;()]*\bOR\b[^;()]*|\bWHERE\b[^;()]*\bOR\b[^;()]*\bAND\b[^;()]*
+Four-part reference; isolate cross-server access	\b\w+\.\w+\.\w+\.\w+\b
+Positional ORDER BY; use names or aliases	\bORDER\s+BY\s+\d+\b
+Hardcoded database; use configuration	\b(?:prod|production|dev|development|staging|qa|test)db\.\w+\.\w+\b
+Missing type length; specify length	\b(?:VARCHAR|NVARCHAR|CHAR|NCHAR|VARBINARY|BINARY)\s*(?:,|\)|;|$)
+DEFINER clause; use invoker or service account	\bDEFINER\s*=\s*\S+
+Storage engine; use environment standard	\bENGINE\s*=\s*\w+
+Explicit charset; use standard charset	\b(?:CHARACTER\s+SET|CHARSET)\s*=?\s*\w+
+Uppercase object; rename lower_snake_case	\bCREATE\s+(?:TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?\w*[A-Z]\w*\b
+AUTO_INCREMENT type; use integer key	\b(?:CHAR|VARCHAR|TEXT|BLOB|FLOAT|DOUBLE|DECIMAL)\s*\([^)]*\)?\s+(?:NOT\s+NULL\s+)?AUTO_INCREMENT\b
+CASE input drift; use searched CASE	\bCASE\s+\w+(?:\.\w+)?\s+WHEN\s+[^\s]+\s+THEN\b[\s\S]*?\bWHEN\s+\w+(?:\.\w+)?\s*(?:<>|!=|<|>|<=|>=)\b
+Repeated unary operator; simplify it	(?:--|\+\+|NOT\s+NOT\b)
+Inverted boolean; rewrite direct predicate	\bNOT\s+\w+(?:\.\w+)?\s*(?:=|<>|!=)\b
+Large CASE; use lookup table	\bCASE\b(?:[\s\S]*?\bWHEN\b){10,}
+Redundant parentheses; remove them	\(\s*\(\s*\w+(?:\.\w+)?\s*\)\s*\)
+Generic id key; use domain key name	\bCREATE\s+TABLE\b[^;]*\(\s*id\s+(?:INT|INTEGER|BIGINT|SERIAL|BIGSERIAL|UUID)\b[^,)]*\bPRIMARY\s+KEY\b
+EAV model; use typed attributes	\bCREATE\s+TABLE\b[^;]*\b(entity_id|entity)\b[^;]*\b(attribute|attr|attr_name|attribute_name)\b[^;]*\b(value|attr_value|attribute_value)\b
+Date-suffixed object; use partitioning	\bCREATE\s+TABLE\b[^(]*\b\w+_(?:19|20)\d{2}\b
+Nullable concat; COALESCE nullable parts	\b(?:CONCAT\s*\(\s*\w+\s*,\s*\w+|\w+\s*\|\|\s*\w+)
+Nested CASE; flatten or use lookup	\bCASE\b[\s\S]*?\bCASE\b
+FROM subquery; name CTE or temp table	\b(?:FROM|JOIN)\s*\(\s*SELECT\b
+TRUNCATE; require approval and backup	\bTRUNCATE\s+TABLE\b|\bTRUNCATE\b
+Destructive ALTER; use expand/contract migration	\bALTER\s+TABLE\b.+\bDROP\s+COLUMN\b|\bALTER\s+TABLE\b.+\bMODIFY\s+COLUMN\b|\bALTER\s+TABLE\b.+\bRENAME\s+COLUMN\b|\bALTER\s+TABLE\b.+\bCHANGE\s+COLUMN\b
+Multi-table transaction; lock in stable order	\bBEGIN\b[\s\S]*?\bUPDATE\s+(\w+)\b[\s\S]*?\bUPDATE\s+(\w+)\b[\s\S]*?\bCOMMIT\b
+Empty exception handler; log and re-raise	\bWHEN\s+OTHERS\s+THEN\s+NULL\b
+INSERT IGNORE; handle conflicts explicitly	\bINSERT\s+IGNORE\b
+REPLACE INTO; use upsert or MERGE	\bREPLACE\s+INTO\b
+ON UPDATE CASCADE; restrict key changes	\bON\s+UPDATE\s+CASCADE\b
+Autonomous transaction; isolate audit writes	\bPRAGMA\s+AUTONOMOUS_TRANSACTION\b
+Check-then-act race; use atomic upsert	\bIF\s+(NOT\s+)?EXISTS\s*\(\s*SELECT[^)]+\)[^;]*\b(INSERT|UPDATE|DELETE)\b
+FK checks disabled; enable and repair	\bPRAGMA\s+foreign_keys\s*=\s*(?:OFF|0|false)\b
+Stale read risk; use RETURNING/output	^.*?(INSERT|UPDATE)\s+[^;]+;\s*SELECT\s+[^;]+FROM\s+(\w+)
+Autocommit off; add explicit boundaries	\bSET\s+autocommit\s*=\s*0\b|\bSET\s+IMPLICIT_TRANSACTIONS\s+ON\b
+Empty transaction; remove it	\b(?:BEGIN|START\s+TRANSACTION)\s*;\s*(?:COMMIT|END)\b
+Generated column add; backfill in phases	\bALTER\s+TABLE\b[\s\S]*\bADD\s+COLUMN\b[\s\S]*\b(?:SERIAL|GENERATED\s+ALWAYS\s+AS\s+STORED)\b
+ADD COLUMN DEFAULT; add nullable then backfill	\bALTER\s+TABLE\b[\s\S]*\bADD\s+COLUMN\b[\s\S]*\bDEFAULT\b
+Foreign key add; index then validate	\bALTER\s+TABLE\b[\s\S]*\bFOREIGN\s+KEY\b
+NOT NULL add; backfill then enforce	\bALTER\s+TABLE\b[\s\S]*\bADD\s+COLUMN\b[\s\S]*\bNOT\s+NULL\b
+Primary key add; create unique index first	\bALTER\s+TABLE\b[\s\S]*\bPRIMARY\s+KEY\b
+DROP DATABASE; require backup and approval	\bDROP\s+DATABASE\b
+Dropping NOT NULL; stage contract change	\bALTER\s+TABLE\b[\s\S]*\bALTER\s+COLUMN\b[\s\S]*\bDROP\s+NOT\s+NULL\b
+DROP TABLE; check dependencies and backup	\bDROP\s+TABLE\b
+TRUNCATE CASCADE; verify child tables	\bTRUNCATE\b[\s\S]*\bCASCADE\b
+Column type change; add, backfill, swap	\bALTER\s+TABLE\b[\s\S]*\bALTER\s+COLUMN\b[\s\S]*\bTYPE\b
+UNIQUE add; dedupe then validate online	\b(?:ADD\s+CONSTRAINT\b[\s\S]*\bUNIQUE\b|CREATE\s+UNIQUE\s+INDEX\b)
+Blocking DDL; use online migration	^[\s\S]*\b(?:ALTER\s+TABLE|TRUNCATE|DROP\s+TABLE|CREATE\s+(?:UNIQUE\s+)?INDEX)\b
+Column rename; add alias, migrate callers	\bALTER\s+TABLE\b[\s\S]*\bRENAME\s+COLUMN\b
+Table rename; use compatibility view	\bALTER\s+TABLE\b[\s\S]*\bRENAME\s+TO\b
+CREATE INDEX; build online or off-peak	\bCREATE\s+(?:UNIQUE\s+)?INDEX\b
+DROP INDEX; verify usage then drop online	\bDROP\s+INDEX\b
+Nested transaction; flatten or use savepoints	\b(?:BEGIN|START\s+TRANSACTION)\b[\s\S]*\b(?:BEGIN|START\s+TRANSACTION|SAVEPOINT)\b
+Non-idempotent DDL; add guards	\b(?:CREATE\s+(?:TABLE|INDEX|SCHEMA|VIEW|TYPE|FUNCTION|SEQUENCE)|DROP\s+(?:TABLE|INDEX|SCHEMA|VIEW|TYPE|FUNCTION|SEQUENCE))\b
+Domain CHECK; validate before enforcing	\bCREATE\s+DOMAIN\b[\s\S]*\b(?:CHECK|CONSTRAINT)\b
+Domain constraint; validate in phases	\bALTER\s+DOMAIN\b[\s\S]*\bADD\s+CONSTRAINT\b
+Enum ordering; append or use lookup	\bALTER\s+TYPE\b[\s\S]*\bADD\s+VALUE\b[\s\S]*\b(?:BEFORE|AFTER)\b
+@@IDENTITY; use scoped identity output	\b@@IDENTITY\b
+Unbounded window sort; filter, index, or limit	\bORDER\s+BY\b[\s\S]*\bOVER\s*\(|\bSELECT\s+DISTINCT\b[\s\S]*\bORDER\s+BY\b
+Routine/trigger/event DDL; deploy via migrations	\bCREATE\s+(?:PROCEDURE|FUNCTION|TRIGGER|EVENT)\b
+Routine body; test side effects	\bCREATE\s+(?:PROCEDURE|FUNCTION)\b[\s\S]*\bBEGIN\b
+Reserved object name; rename or quote	\bCREATE\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION)\s+`?(?:group|order|rank|system)`?\b
+Partitioning; verify pruning and retention	\bPARTITION\s+BY\s+(?:HASH|KEY|RANGE|LIST)\b
+Long FK name; shorten it	\bCONSTRAINT\s+[A-Za-z0-9_]{65,}\s+FOREIGN\s+KEY\b
+Nullable arithmetic; COALESCE or enforce NOT NULL	\bSELECT\b[\s\S]*\b\w+\s*[+\-*/]\s*\w+\b
+OUTPUT before RETURN; assign defaults first	\bCREATE\s+(?:PROC|PROCEDURE)\b[\s\S]*\bOUTPUT\b[\s\S]*\bRETURN\b
+Lossy cast; widen type or validate range	\bCAST\s*\([^)]*\bAS\s+(?:TINYINT|SMALLINT|INT|DECIMAL\s*\(\s*\d{1,2}\s*,\s*\d+\s*\))\b
+Exclusive lock; shrink scope	\bLOCK\s+TABLE\b[\s\S]*\bACCESS\s+EXCLUSIVE\b[\s\S]*;[\s\S]*\b(?:SELECT|INSERT|UPDATE|DELETE|ALTER|CREATE|DROP)\b
+Pinned extension; manage via migrations	\bALTER\s+EXTENSION\b[\s\S]*\bUPDATE\s+TO\b
+regclass usage; use stable object names	\b(?:regproc|regprocedure|regoper|regoperator|regclass|regtype|regconfig|regdictionary)\b
+Bulk load; validate source and permissions	\bCOPY\b[\s\S]*\bFROM\b
+SELECT FOR UPDATE transaction; commit fast	\bBEGIN\b[\s\S]*\bSELECT\b[\s\S]*\bFOR\s+UPDATE\b[\s\S]*\bCOMMIT\b
+FOR SHARE; keep transaction short	\bFOR\s+SHARE\b
+Constraint add; validate data and indexes	\b(?:NOT\s+NULL|CHECK\s*\(|CONSTRAINT\s+\w+\s+CHECK\s*\()
+DELETE JOIN; preview keys and batch	\bDELETE\b[\s\S]*\bJOIN\b
+INSERT missing columns; list columns	\bINSERT\s+INTO\s+[\w\."`\[\]]+\s+(?:VALUES|SELECT|DEFAULT)\b
+TOP without order; add stable ORDER BY	\bSELECT\s+TOP\s+\d+\b(?:[^;O]|O(?:[^R;]|R(?:[^D;]|D(?:[^E;]|E[^R;]))))*(?:;|$)
+MONEY type; use DECIMAL/NUMERIC	\b(?:SMALLMONEY|MONEY)\b
+Float exact value; use DECIMAL/NUMERIC	\b(?:FLOAT|REAL)\b
+Database switch; use qualified names	\bUSE\s+DATABASE\b
+Mixed parameters; standardize style	:[A-Za-z_][A-Za-z0-9_]*[\s\S]*\?|\?[\s\S]*:[A-Za-z_][A-Za-z0-9_]*
+EXECUTE IMMEDIATE INTO; use only for queries	\bEXECUTE\s+IMMEDIATE\b[\s\S]*?\bINTO\b[\s\S]*?\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|ALTER|TRUNCATE)\b
+Nested dynamic SQL; bind once	\bEXECUTE\s+IMMEDIATE\b[\s\S]*\bEXECUTE\s+IMMEDIATE\b
+EXECUTE IMMEDIATE block; split statements	\bEXECUTE\s+IMMEDIATE\b[\s\S]*?\bBEGIN\b[\s\S]*?\bEND\b
+Invalid identifier; rename or quote	\b(?:FROM|JOIN|INTO|TABLE|UPDATE)\s+[A-Za-z_][A-Za-z0-9_]*[-#@!$%^&*+][A-Za-z0-9_\-#@!$%^&*+]*
+SELECT trailing comma; remove it	\bSELECT\b[\s\S]*?,\s*\bFROM\b
+CTE alias shadowing; rename inner CTE	\bWITH\b[\s\S]*?\b(\w+)\s+AS\s*\([\s\S]*?\bWITH\b[\s\S]*?\b\w+\s+AS\s*\(
+Missing WINDOW clause; define or inline	\bOVER\s+[A-Za-z_]\w*\b
+Standalone COMMIT; wrap or remove	(?:^|;)\s*COMMIT\b
+Limited DML without WHERE; add key filter	\b(?:UPDATE|DELETE)\b(?:[^;W]|W(?:[^H;]|H(?:[^E;]|E(?:[^R;]|R[^E;]))))*\b(?:ORDER\s+BY|LIMIT\s+\d+)\b
+Dropping FK; verify integrity first	\bALTER\s+TABLE\b[\s\S]*\bDROP\s+(?:FOREIGN\s+KEY|CONSTRAINT\s+\w*(?:fk|foreign)\w*)\b
+Dropping CHECK; replace validation first	\bALTER\s+TABLE\b[\s\S]*\bDROP\s+(?:CHECK|CONSTRAINT\s+\w*(?:chk|check)\w*)\b
+Dropping PK; add replacement key first	\bALTER\s+TABLE\b[\s\S]*\bDROP\s+PRIMARY\s+KEY\b
+DROP SCHEMA; backup and gate environment	\bDROP\s+SCHEMA\b
+UNIQUE conversion; dedupe first	\bALTER\s+(?:INDEX|TABLE)\b[\s\S]*\bUNIQUE\b
+LOGGED toggle; schedule rewrite	\bALTER\s+TABLE\b[\s\S]*\bSET\s+(?:LOGGED|UNLOGGED)\b
+Trigger creation; keep body minimal	\bCREATE\s+(?:OR\s+REPLACE\s+)?TRIGGER\b
+Identity column add; backfill in phases	\bALTER\s+TABLE\b[\s\S]*\bADD\s+COLUMN\b[\s\S]*\bGENERATED\s+(?:ALWAYS|BY\s+DEFAULT)\s+AS\s+IDENTITY\b
+Access method change; rebuild online	\bALTER\s+TABLE\b[\s\S]*\bSET\s+ACCESS\s+METHOD\b
+Inline REFERENCES add; use separate FK	\bALTER\s+TABLE\b[\s\S]*\bADD\s+COLUMN\b[\s\S]*\bREFERENCES\b
+ENUM column change; migrate in phases	\bALTER\s+TABLE\b[\s\S]*\b(?:MODIFY|CHANGE)\b[\s\S]*\bENUM\s*\(
+SET column change; normalize or phase	\bALTER\s+TABLE\b[\s\S]*\b(?:MODIFY|CHANGE)\b[\s\S]*\bSET\s*\(
+Full-text index; build online/off-peak	\b(?:ADD\s+FULLTEXT|CREATE\s+FULLTEXT\s+INDEX)\b
+Spatial index; build online/off-peak	\b(?:ADD\s+SPATIAL|CREATE\s+SPATIAL\s+INDEX)\b
+Charset conversion; batch and verify collation	\bALTER\s+TABLE\b[\s\S]*\bCONVERT\s+TO\s+(?:CHARACTER\s+SET|CHARSET)\b
+Multiple auto-increments; keep one generated key	\bCREATE\s+TABLE\b[\s\S]*\b(?:AUTO_INCREMENT|AUTOINCREMENT|IDENTITY|SERIAL)\b[\s\S]*\b(?:AUTO_INCREMENT|AUTOINCREMENT|IDENTITY|SERIAL)\b
+Temp table scope; declare it explicitly	\bCREATE\s+(?:GLOBAL\s+|LOCAL\s+)?(?:TEMPORARY|TEMP)\s+TABLE\b
+Date/time literal; use typed ISO value	\b(?:DATE|TIMESTAMP|TIME)\s+'[^']*'
+Trigger transaction control; remove it	\bCREATE\s+(?:OR\s+REPLACE\s+)?TRIGGER\b[\s\S]*\b(?:COMMIT|ROLLBACK)\b
+Extreme isolation; lower or document	\bSET\s+TRANSACTION\s+ISOLATION\s+LEVEL\s+(?:READ\s+UNCOMMITTED|SERIALIZABLE)\b
+Cursor FETCH target; align variables	\bFETCH\s+(?:NEXT\s+)?(?:FROM\s+)?\w+\s+INTO\b
+WHERE CURRENT OF; use set-based DML	\bCURSOR\b[\s\S]*\bFOR\s+UPDATE\b[\s\S]*\bWHERE\s+CURRENT\s+OF\b
+ENUM/SET long value; shorten or lookup	\b(?:ENUM|SET)\s*\([^)]*'[^']{256,}'
+Partition engine override; use native partitioning	\bPARTITION\s+BY\b[\s\S]*\bENGINE\s*=\s*\w+
+Partition tablespace; verify storage support	\bPARTITION\s+BY\b[\s\S]*\bTABLESPACE\s+\w+
+BLOB/TEXT/JSON default; set in app	\b(?:BLOB|TEXT|LONGTEXT|MEDIUMTEXT|TINYTEXT|GEOMETRY|JSON)\b[^,)]*\bDEFAULT\b
+Row format override; use default	\bROW_FORMAT\s*=\s*(?:REDUNDANT|COMPACT|FIXED)\b
+CHECK TABLE; run in maintenance	\bCHECK\s+TABLE\b
+CHECK FOR UPGRADE; run during upgrade	\bCHECK\s+TABLE\b[\s\S]*\bFOR\s+UPGRADE\b
+REPAIR TABLE; restore or repair offline	\bREPAIR\s+TABLE\b
+Cursor BULK COLLECT; fetch with LIMIT	\bCURSOR\b[\s\S]*?\bIS\b[\s\S]*?\bBULK\s+COLLECT\s+INTO\b
+BULK COLLECT without LIMIT; chunk it	\bBULK\s+COLLECT\s+INTO\b
+User exception; bind error code	\b\w+\s+EXCEPTION\s*;
+OTHERS handler; log and re-raise	\bWHEN\s+OTHERS\s+THEN\b[\s\S]*?\bEND\b
+Removed function; replace supported function	\b(?:PASSWORD|OLD_PASSWORD|ENCRYPT|DES_ENCRYPT|DES_DECRYPT|ENCODE|DECODE|AREA|GLENGTH|SRID|X|Y|CONTAINS|TOUCHES|CROSSES|WITHIN)\s*\(
+Zero date; use NULL or valid sentinel	'0000-00-00(?:[ T]00:00:00(?:\.0+)?)?'
+Integrity pragma; run in maintenance	\bPRAGMA\s+integrity_check\b
+Quick check pragma; run diagnostics only	\bPRAGMA\s+quick_check\b
+FK check; repair before writes	\bPRAGMA\s+foreign_key_check\b
+Cell-size check; enable only for diagnostics	\bPRAGMA\s+cell_size_check\b
+Query-only pragma; set role/mode explicitly	\bPRAGMA\s+query_only\b
+Parent path traversal; whitelist absolute paths	\b(?:DATA|INDEX)\s+DIRECTORY\s*=\s*'[^']*(?:\.\./|/\.\.(?:/|'))
+Removed variable; delete or replace setting	\b(?:log_syslog|log_syslog_facility|log_syslog_include_pid|log_syslog_tag)\b
+Trigger output; remove result output	\bCREATE\s+(?:OR\s+REPLACE\s+)?TRIGGER\b[\s\S]*?\b(PRINT|SELECT|FETCH)\b
+Nondeterministic time; pass timestamp parameter	\b(GETDATE|GETUTCDATE|SYSDATETIME|SYSUTCDATETIME|CURRENT_TIMESTAMP|NOW|SYSDATE|CURDATE|CURTIME|LOCALTIMESTAMP)\s*\(
+NOCOUNT OFF; keep NOCOUNT ON	\bSET\s+NOCOUNT\s+OFF\b
+ADD PRIMARY KEY; validate NOT NULL uniqueness	\bALTER\s+TABLE\b[\s\S]*\bADD\s+(?:CONSTRAINT\s+\w+\s+)?PRIMARY\s+KEY\b
+Partition drop; archive and verify retention	\bALTER\s+TABLE\b[\s\S]*\bDROP\s+PARTITION\b
+NOT NULL change; backfill first	\bALTER\s+TABLE\b[\s\S]*\b(?:ALTER|MODIFY)\s+COLUMN\b[\s\S]*\bNOT\s+NULL\b
+CHECK add; validate rows first	\bALTER\s+TABLE\b[\s\S]*\bADD\s+(?:CONSTRAINT\s+\w+\s+)?CHECK\s*\(
+Low-precision time; use explicit precision	\b(?:TIMESTAMP|DATETIME|TIME)\b
+Event definition; manage as monitored job	\bCREATE\s+(?:DEFINER\s*=\s*\S+\s+)?EVENT\b
+Trigger definition; minimize side effects	\bCREATE\s+(?:DEFINER\s*=\s*\S+\s+)?TRIGGER\b
+View definition; specify columns	\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:MATERIALIZED\s+)?VIEW\b
+Stored routine; test permissions and effects	\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:DEFINER\s*=\s*\S+\s+)?(?:PROCEDURE|FUNCTION)\b
+Schema-qualified FK; ensure schema portability	\bREFERENCES\s+\w+\.\w+
+ROWNUM with ORDER BY; order first	\bROWNUM\b[\s\S]*\bORDER\s+BY\b|\bORDER\s+BY\b[\s\S]*\bROWNUM\b
+Constant WHERE; replace with real predicate	\bWHERE\b[\s\S]*?(?:\b1\s*=\s*0\b|\b0\s*=\s*1\b|\bFALSE\b|\b1\s*=\s*1\b|\bTRUE\b)
+Physical row id; use primary key	\b(?:UROWID|ROWID)\b
+FULL OUTER JOIN; confirm or rewrite	\bFULL\s+(?:OUTER\s+)?JOIN\b
+Empty batch; remove it	^\s*;(?:\s*;)*\s*$
+LIMIT/OFFSET unordered; add stable ORDER BY	\bSELECT\b(?:[^;O]|O(?:[^R;]|R(?:[^D;]|D(?:[^E;]|E[^R;]))))*\b(?:LIMIT|OFFSET)\s+\d+\b(?:[^;O]|O(?:[^R;]|R(?:[^D;]|D(?:[^E;]|E[^R;]))))*(?:;|$)
+AUTO_CLOSE; disable in production	\bALTER\s+DATABASE\b[\s\S]*\bSET\s+AUTO_CLOSE\s+ON\b
+DELETE without WHERE; add filter	\bDELETE\s+FROM\s+\w+(?:\.\w+)*\s*(?:;|$)
+UPDATE without WHERE; add filter	\bUPDATE\s+\w+(?:\.\w+)*\s+SET\b(?:[^;W]|W(?:[^H;]|H(?:[^E;]|E(?:[^R;]|R[^E;]))))*(?:;|$)
+Core-table mass delete; batch with backup	\bDELETE\s+FROM\s+(?:\w+\.)?(users|customers|accounts|orders|products|categories|departments|companies|tenants|organizations)\b
+Hardcoded credential; move to vault	(password|passwd|pwd|secret|token)\s*=\s*'[^']+'
+High-risk grant; grant least privilege	\bGRANT\b[^;]*\b(?:TO\s+(?:PUBLIC|GUEST)|WITH\s+(?:ADMIN|GRANT)\s+OPTION|ALL\b|SELECT|INSERT|UPDATE|DELETE|EXECUTE|REFERENCES|ALTER|CREATE|DROP|TRUNCATE|admin|administrator|superuser|sysadmin|db_owner|dba|root|securityadmin|serveradmin|dbcreator|sa)\b|\b(?:ALTER\s+ROLE|sp_addrolemember|ALTER\s+USER)\b[^;]+\b(?:admin|administrator|superuser|sysadmin|db_owner|dba|root|securityadmin|serveradmin|dbcreator|sa)\b
+Account creation; use IAM/DBA workflow	\bCREATE\s+(USER|LOGIN)\b
+Disabled password policy; enable it	\bCHECK_POLICY\s*=\s*OFF\b|\bCHECK_EXPIRATION\s*=\s*OFF\b
+Schema owner change; audit and restrict	\b(ALTER\s+AUTHORIZATION\s+ON|ALTER\s+SCHEMA\s+\w+\s+TRANSFER|CHOWN|SET\s+OWNER)\b
+Dangerous server config; disable or isolate	\bsp_configure\b.+\b(xp_cmdshell|Ole\s+Automation|clr\s+enabled|Ad\s+Hoc\s+Distributed\s+Queries|Database\s+Mail\s+XPs|Replication\s+XPs|Agent\s+XPs|scan\s+for\s+startup|filestream\s+access\s+level|remote\s+admin\s+connections|cross\s+db\s+ownership\s+chaining|default\s+trace\s+enabled|user\s+options|SQL\s+Server\s+Browser)\b
+Remote URL function; restrict outbound hosts	\burl\s*\(\s*['\"]https?://
+OS command execution; remove or isolate job	\b(?:xp_cmdshell|sp_OACreate|sp_OAMethod|EXEC\s+master\.\.xp_cmdshell|pg_read_file|pg_execute_server_program|pg_ls_dir|pg_read_binary_file|FROM\s+PROGRAM|libc\.so)\b
+Connection string secret; use secret storage	(PASSWORD\s*=\s*[\'"][^\'"]{4,}[\'"]|pwd\s*=\s*[\'"][^\'"]{4,}[\'"]|IDENTIFIED\s+BY\s+[\'"][^\'"]+[\'"])
+Insecure connection; require TLS validation	(Encrypt\s*=\s*(false|no|0)|TrustServerCertificate\s*=\s*true|sslmode\s*=\s*(disable|allow|prefer)|ssl\s*=\s*(false|0))
+Default credential; rotate and least-privilege	\b(sa|admin|root|postgres|mysql)\b.*\b(Password\s*=\s*[\'"]?(sa|admin|root|password|123456|default)[\'"]?|IDENTIFIED\s+BY\s+[\'"]?(sa|admin|root|password)[\'"]?)
+Permissive access; restrict principals and hosts	(GRANT\s+.*\s+TO\s+.*@[\'"]%[\'"]|CREATE\s+USER\s+.*@[\'"]%[\'"]|Host\s*=\s*[\'"]?(\*|0\.0\.0\.0|%|::|all)[\'"]?)
+Weak secret hash; use Argon2/bcrypt/scrypt	\b(MD5|SHA1|SHA)\s*\(\s*[^)]*\b(password|passwd|pwd|secret|token|key|credential)\b
+Plain password write; store salted hashes	\b(INSERT\s+INTO|UPDATE)\b[^;]*\b(password|passwd|pwd|secret_key|api_key|auth_token)\b[^;]*?(?:=\s*|VALUES\s*\()[^;(]*?['\"][^'\"()]{4,}['\"]
+Hardcoded key; use KMS/vault	\b(AES_ENCRYPT|AES_DECRYPT|ENCRYPT|DECRYPT|ENCRYPTBYKEY|DECRYPTBYKEY|HASHBYTES|HMAC)\s*\([^)]*,\s*['\"][A-Za-z0-9\+/=!@#\$%^&\*\-]{8,}['\"]
+File IO SQL; restrict file privileges	\bINTO\s+OUTFILE\b|\bINTO\s+DUMPFILE\b|\bLOAD_FILE\s*\(|\bLOAD\s+DATA\s+INFILE\b|\bBULK\s+INSERT\b|\bCOPY\b.+\bFROM\s+PROGRAM\b|\bCOPY\b.+\bTO\s+PROGRAM\b
+ReDoS regex; simplify or limit input	\b(REGEXP|RLIKE|REGEXP_LIKE|REGEXP_MATCHES|SIMILAR\s+TO)\s*\(?[^)]*(\(\?\:?\[?\w+\]\*\)[\*\+]|\(\.\*\)[\*\+]|\(\w\+\)[\*\+]|\[\^?\w+\]\*\[\^?\w+\]\*)
+Version disclosure; remove user-visible query	(?:@@VERSION|VERSION\(\)|SERVERPROPERTY\(\'ProductVersion\'\)|pg_version\(\)|BANNER|v\$version)
+Metadata disclosure; restrict catalog access	\b(INFORMATION_SCHEMA|sys\.|pg_catalog|ALL_TABLES|USER_TABLES|DBA_TABLES|SHOW\s+TABLES|SHOW\s+COLUMNS|DESCRIBE|syscolumns|sysobjects)\b
+Timing primitive; remove data-dependent delay	\b(SLEEP|WAITFOR\s+DELAY|DBMS_LOCK\.SLEEP|PG_SLEEP)\b\s*\(\s*\d+\s*\)
+Verbose error; sanitize output	\b(RAISERROR|THROW|SIGNAL)\b[^;]*\b(@@ERROR|ERROR_MESSAGE|SQLERRM|SQLSTATE)|\bCAST\s*\(\s*(?:@@VERSION|VERSION\(\)|BANNER)
+Concatenated SQL; use bind parameters	(['\"]\s*[+.]\s*[a-zA-Z_$]\w*)|([a-zA-Z_$]\w*\s*[+.]\s*['\"])|(\$\{[^}]+\})|%[sdif]\b|\{\d+\}
+Dynamic SQL; bind values, whitelist identifiers	EXEC\s*\(|EXECUTE\s*\(|EXECUTE\s+IMMEDIATE\b|\bsp_executesql\b|\bPREPARE\s+\w+\s+FROM\s+@|\bPREPARE\s+\w+\s+FROM\s+CONCAT\s*\(
+Tautological OR; remove and bind inputs	\bOR\s+1\s*=\s*1\b|\bOR\s+'[^']*'\s*=\s*'[^']*'|\bOR\s+\"[^\"]*\"\s*=\s*\"[^\"]*\"|\bOR\s+TRUE\b
+Time-based injection; remove delay sink	\bWAITFOR\s+DELAY\b|\bSLEEP\s*\(|\bpg_sleep\s*\(|\bBENCHMARK\s*\(
+LDAP query concat; escape or parameterize	\b(LDAP|AD_|DIRECTORY)\w*\s*\([^)]*(\+|CONCAT|CONCATENATE|\|\|)[^)]*\b(cn=|ou=|dc=|uid=|objectClass=)\b
+Document query concat; bind and validate fields	\b(OPENJSON|JSON_QUERY|JSON_VALUE|FOR\s+JSON|MONGODB|COSMOSDB|mongo_\w*|json_\w*)\b[^;]*(\+|CONCAT|\|\|)[^;]*[{}\[\]$]
+XPath/XML concat; bind or escape input	\b(XMLQUERY|XMLEXISTS|XPATH|XQUERY|xml_)\b[^;]*(\+|CONCAT|\|\|)[^;]*[/\[\]]
+Template evaluation; remove or sandbox	\b(RENDER|TEMPLATE|EVAL|EXECUTE|PROCESS|render_)\w*\b\([^)]*(\+|CONCAT|\|\|)
+JSON concat; use typed constructors	\b(JSON_OBJECT|JSON_ARRAY|JSON_INSERT|JSON_REPLACE|JSON_SET|json_\w*)\b[^;]*(\+|CONCAT|\|\|)
+Sensitive error output; redact values	\b(RAISERROR|THROW|RAISE|PRINT|DBMS_OUTPUT\.PUT_LINE|RAISE\s+NOTICE)\b[^;]*\b(password|pwd|ssn|social_security|credit_card|card_number|cvv|secret|token|api_key|private_key)\b
+Audit modification; use immutable audit path	\b(DELETE\s+FROM|TRUNCATE|UPDATE|DROP\s+TABLE)\s+[^;]*\b(audit|audit_log|audit_trail|event_log|security_log|access_log|change_log|history)\b|\b(SET\s+(?:sql_log_off|general_log|audit_trail|log_statement)\s*=\s*(?:0|OFF|NONE|false))\b
+LOAD DATA LOCAL; disable or restrict	\bLOAD\s+DATA\s+LOCAL\s+INFILE\b
+Utility package access; revoke or wrap	\bUTL_(?:HTTP|FILE|SMTP|TCP|INADDR)\b
+DBMS_SQL execution; bind or use static SQL	\bDBMS_SQL\s*\.\s*(?:PARSE|EXECUTE|OPEN_CURSOR)\b
+Dynamic file path; use fixed paths	\b(EXECUTE|EXEC|SOURCE|\\i|@)\b[^;]*(\+|CONCAT|\|\|)[^;]*\.sql\b
+Search path change; lock schemas	\bSET\s+search_path\b
+RAISE concat; format and redact	\bRAISE\s+(?:NOTICE|WARNING|INFO|LOG|DEBUG)\s+.*\|\|
+Privileged context; use invoker/least privilege	\bEXECUTE\s+AS\s+(USER\s*=\s*)?'(dbo|sa|sysadmin)'|\bEXECUTE\s+AS\s+LOGIN\s*=\s*'(sa|sysadmin)'|\bEXECUTE\s+AS\s+(OWNER|SELF)\b|\bSECURITY\s+DEFINER\b|\bWITH\s+ADMIN\s+OPTION\b|\bWITH\s+GRANT\s+OPTION\b
+Bulk-load credentials; use external credentials	\bCOPY\b.*\b(?:ACCESS_KEY_ID|SECRET_ACCESS_KEY|AWS_KEY_ID|AWS_SECRET_KEY|AZURE_SAS_TOKEN|CREDENTIALS)\b
+Session token storage; hash and expire tokens	\b(INSERT\s+INTO|UPDATE)\b[^;]*\b(session_token|auth_token|access_token|refresh_token|bearer_token|jwt_token)\b[^;]*?(?:=\s*|VALUES\s*\()[^;(]*?['\"]?[A-Za-z0-9_\-\.]{20,}['\"]?
+CLONE; review copied privileges	\bCLONE\b
+External attachment; restrict trusted files	\bATTACH\s+(?:DATABASE\s+)?(?:'[^']*'|\"[^\"]*\"|\S+)\s+AS\b
+OLE automation; disable or externalize	\bsp_OA(?:Create|Method|GetProperty|SetProperty|Destroy)\b
+Permissive RLS policies; consolidate policies	(?:\bCREATE\s+POLICY\b[\s\S]*\bAS\s+PERMISSIVE\b[\s\S]*?){2,}
+Public schema exposure; revoke public access	\bCREATE\s+(?:FOREIGN\s+TABLE|MATERIALIZED\s+VIEW|TABLE|VIEW)\s+public\.|\bCREATE\s+EXTENSION\b[\s\S]*\bSCHEMA\s+public\b
+Always-true RLS; add tenant/user predicate	\bCREATE\s+POLICY\b[\s\S]*\bUSING\s*\(\s*TRUE\s*\)
+Dynamic SQL concat; bind and whitelist	\b(EXECUTE\s+IMMEDIATE|sp_executesql|EXEC\s*\(|PREPARE\s+\w+\s+FROM)\b[^;]*(\|\||\+|CONCAT\s*\(|@\w+)
+Dynamic server string; use fixed servers	\b(CREATE\s+SERVER|CREATE\s+DATABASE\s+LINK|sp_addlinkedserver|OPENROWSET|OPENDATASOURCE)\b[^;]*(\|\||CONCAT\s*\(|@\w+|\?\?)
+REVOKE; audit dependent roles	\bREVOKE\b
+User-supplied PK; validate ownership	\b(WHERE|AND|OR|SET|VALUES)\b[^;]*\b(id|pk|primary_key|\w*_id)\s*=\s*(['\"]\s*[+.]\s*[a-zA-Z_$]\w*|[a-zA-Z_$]\w*\s*[+.]\s*['\"]|\$\{[^}]+\}|\|\|\s*[a-zA-Z_$]\w*|CONCAT\s*\()
+Locale conversion; specify format and locale	\b(TO_CHAR|TO_DATE|TO_NUMBER|TO_TIMESTAMP|TO_TIMESTAMP_TZ)\s*\(\s*[^,()]+\s*\)
+trusted_schema; disable unless trusted	\bPRAGMA\s+trusted_schema\b
+Password change; use rotation workflow	\bALTER\s+(?:USER|LOGIN|ROLE)\b[\s\S]*\b(?:PASSWORD|IDENTIFIED\s+BY)\b|\bSET\s+PASSWORD\b
+User alteration; use audited access workflow	\bALTER\s+USER\b
+Role creation; grant least privilege	\bCREATE\s+ROLE\b
+Role alteration; audit privilege diff	\bALTER\s+ROLE\b
+TRUSTWORTHY; disable and sign modules	\bALTER\s+DATABASE\b[\s\S]*\bSET\s+TRUSTWORTHY\s+ON\b
+Ownership chaining; disable and grant explicitly	\bALTER\s+DATABASE\b[\s\S]*\bSET\s+DB_CHAINING\s+ON\b
+TDE disabled; enable encryption	\bALTER\s+DATABASE\b[\s\S]*\bSET\s+ENCRYPTION\s+OFF\b
+Weak symmetric cipher; use AES_256	\bCREATE\s+SYMMETRIC\s+KEY\b[\s\S]*\bALGORITHM\s*=\s*(?:DES|DESX|TRIPLE_DES(?:_3KEY)?|RC2|RC4(?:_128)?)\b
+Weak endpoint encryption; require strong encryption	\bCREATE\s+ENDPOINT\b[\s\S]*\bENCRYPTION\s*=\s*(?:DISABLED|\w+\s+ALGORITHM\s+RC4)\b
+Common login; use named service account	\bCREATE\s+LOGIN\s+\[?(?:sa|admin|administrator|root|test|guest|user)\]?\b
+sa mapping; use least-privilege login	\b(?:CREATE|ALTER)\s+USER\b[\s\S]*\bFOR\s+LOGIN\s+\[?sa\]?\b
+Fixed CHAR; use VARCHAR unless fixed	\b(?:CHARACTER|CHAR)\s*\(\s*\d+\s*\)
+ENUM type; prefer lookup table	\bCREATE\s+TYPE\b[\s\S]*\bAS\s+ENUM\b
+Table missing schema; add schema	\bCREATE\s+(?:UNLOGGED\s+|TEMP(?:ORARY)?\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?\w+\s*(?:\(|;|$)
+Tiny VARCHAR; use CHAR or realistic length	\b(?:VARCHAR|NVARCHAR|VARBINARY)\s*\(\s*[12]\s*\)
+sp_ procedure; rename it	\bCREATE\s+(?:PROC|PROCEDURE)\s+(?:\[[^\]]+\]\.)?\[?sp_[A-Za-z0-9_#$@]*\]?
+Special-character object; rename snake_case	\b(?:CREATE|ALTER)\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION)\s+\[?[A-Za-z0-9_]+(?:[- ][A-Za-z0-9_]+)+\]?
+Reserved type name; choose domain name	\bCREATE\s+TYPE\s+\[?(?:SELECT|TABLE|FROM|WHERE|GROUP|ORDER)\]?\b
+Procedural unit; keep set-based or move logic	\bCREATE\s+OR\s+REPLACE\s+(?:PROCEDURE|FUNCTION|PACKAGE|PACKAGE\s+BODY)\b
+CREATE TABLE; define schema, keys, constraints	\bCREATE\s+TABLE\b[\s\S]*\(
+Destructive DDL; guard, backup, approve	\b(?:DROP\s+TABLE|DROP\s+INDEX|DROP\s+VIEW)\b
+Naming violation; use lower_snake_case	\b(?:CREATE|ALTER)\s+(?:TABLE|INDEX|VIEW|CONSTRAINT)\s+\[?[A-Za-z0-9_]*[^A-Za-z0-9_\s\[\]\.]+[A-Za-z0-9_]*\]?
+PK name; use pk_<table>	\bCONSTRAINT\s+[A-Za-z0-9_]+\s+PRIMARY\s+KEY\b
+Nonstandard NOT; use NOT	!\s*(?:[A-Za-z_(]|EXISTS\b|IN\b|BETWEEN\b|LIKE\b)
+Lowercase keyword; uppercase keywords	\b(?:select|from|where|join|inner|outer|left|right|full|cross|on|group|order|by|having|union|intersect|except|insert|into|values|update|set|delete|create|table|view|index|drop|alter|as|and|or|not|in|is|null|like|between|exists|case|when|then|else|end|limit|offset|with|distinct|all)\b
+Non-snake identifier; rename lower_snake_case	\b(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+"?[A-Za-z_][A-Za-z0-9_]*[A-Z][A-Za-z0-9_]*"?
+Abbreviated keyword; use full keyword	\b(?:EXEC|PROC|FUNC|TRAN|DB|IDX|TBL)\b
+ORDER BY direction; add ASC/DESC	\bORDER\s+BY\s+\w+(?:\.\w+)?\s*(?:,|;|\bLIMIT\b|\bOFFSET\b|\bFETCH\b|$)
+COUNT argument; use COUNT(*) or COUNT(column)	\bCOUNT\s*\(\s*(?:1|\w+(?:\.\w+)?)\s*\)
+Outer statement parentheses; remove them	^\s*\(\s*(?:SELECT|INSERT|UPDATE|DELETE|WITH)\b
+Special-character identifier; rename or quote	"[A-Za-z_][A-Za-z0-9_]*[^A-Za-z0-9_"][^"]*"|`[A-Za-z_][A-Za-z0-9_]*[^A-Za-z0-9_`][^`]*`|\[[A-Za-z_][A-Za-z0-9_]*[^A-Za-z0-9_\]][^\]]*\]
+JOIN USING; use explicit ON	\bJOIN\b[\s\S]*?\bUSING\s*\(
+Unbounded SELECT; add WHERE, LIMIT, or pagination	\bSELECT\b[^;]*\bFROM\s+[`"]?\w+[`"]?(?:\s+(?:AS\s+)?[`"]?\w+[`"]?)?\s*(?:;|$)

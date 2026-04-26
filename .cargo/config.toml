@@ -1,0 +1,80 @@
+[build]
+incremental = false
+
+[target.aarch64-apple-darwin]
+rustflags = [
+    "-C", "embed-bitcode=yes",
+    "-C", "link-arg=-Wl,-dead_strip",
+    "-C", "link-arg=-Wl,-x",
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C", "embed-bitcode=yes",
+    "-C", "link-arg=-Wl,-dead_strip",
+    "-C", "link-arg=-Wl,-x",
+]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+    "-C", "embed-bitcode=yes",
+    "-C", "relocation-model=pic",
+    "-C", "link-arg=-Wl,--gc-sections",
+    "-C", "link-arg=-Wl,--as-needed",
+    "-C", "link-arg=-Wl,-O1",
+    "-C", "link-arg=-Wl,--icf=all",
+    "-C", "link-arg=-Wl,--strip-all",
+]
+
+[target.x86_64-unknown-linux-musl]
+rustflags = [
+    "-C", "embed-bitcode=yes",
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=-Wl,--gc-sections",
+    "-C", "link-arg=-Wl,--as-needed",
+    "-C", "link-arg=-Wl,-O1",
+    "-C", "link-arg=-Wl,--icf=all",
+    "-C", "link-arg=-Wl,--strip-all",
+]
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = [
+    "-C", "embed-bitcode=yes",
+    "-C", "relocation-model=pic",
+    "-C", "link-arg=-Wl,--gc-sections",
+    "-C", "link-arg=-Wl,--as-needed",
+    "-C", "link-arg=-Wl,-O1",
+    "-C", "link-arg=-Wl,--icf=all",
+    "-C", "link-arg=-Wl,--strip-all",
+]
+
+[target.aarch64-unknown-linux-musl]
+rustflags = [
+    "-C", "embed-bitcode=yes",
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=-Wl,--gc-sections",
+    "-C", "link-arg=-Wl,--as-needed",
+    "-C", "link-arg=-Wl,-O1",
+    "-C", "link-arg=-Wl,--icf=all",
+    "-C", "link-arg=-Wl,--strip-all",
+]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C", "embed-bitcode=yes",
+    "-C", "link-arg=/OPT:REF",
+    "-C", "link-arg=/OPT:ICF",
+]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = [
+    "-C", "embed-bitcode=yes",
+    "-C", "link-arg=/OPT:REF",
+    "-C", "link-arg=/OPT:ICF",
+]
+
+[net]
+git-fetch-with-cli = true
+
+[term]
+color = "auto"

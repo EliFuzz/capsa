@@ -1,0 +1,28 @@
+[package]
+name = "core-sql"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[features]
+default = []
+ansi = []
+bigquery = []
+clickhouse = []
+databricks = []
+duckdb = []
+hive = []
+mssql = []
+mysql = []
+postgres = []
+redshift = []
+snowflake = []
+sqlite = []
+
+[dependencies]
+sqlparser = { version = "0.61.0", features = ["serde"] }

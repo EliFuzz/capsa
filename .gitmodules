@@ -1,0 +1,5 @@
+[submodule "vendor/vectorscan"]
+	path = vendor/vectorscan
+	url = https://github.com/Vectorcamp/vectorscan.git
+	branch = master
+	update = merge

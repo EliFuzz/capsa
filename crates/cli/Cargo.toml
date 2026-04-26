@@ -1,0 +1,28 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "capsa"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+core-regex = { path = "../core/regex" }
+core-sql = { path = "../core/sql", features = [
+    "ansi",
+    "bigquery",
+    "clickhouse",
+    "databricks",
+    "duckdb",
+    "hive",
+    "mssql",
+    "mysql",
+    "postgres",
+    "redshift",
+    "snowflake",
+    "sqlite",
+] }
