@@ -1,13 +1,13 @@
 use crate::{
-    hs_alloc_scratch, hs_compile_multi, hs_database_t, hs_free_compile_error, hs_free_scratch,
-    hs_scan, hs_scratch_t, HS_MODE_BLOCK, HS_SUCCESS,
+    HS_MODE_BLOCK, HS_SUCCESS, hs_alloc_scratch, hs_compile_multi, hs_database_t,
+    hs_free_compile_error, hs_free_scratch, hs_scan, hs_scratch_t,
 };
-use std::ffi::{c_char, c_uint, c_ulonglong, c_void, CStr};
+use std::ffi::{CStr, c_char, c_uint, c_ulonglong, c_void};
 use std::ptr;
 use std::sync::OnceLock;
 
 use super::super::super::{
-    RULES, VECTORSCAN_PATTERNS, VECTORSCAN_PATTERN_FLAGS, VECTORSCAN_PATTERN_IDS,
+    RULES, VECTORSCAN_PATTERN_FLAGS, VECTORSCAN_PATTERN_IDS, VECTORSCAN_PATTERNS,
 };
 
 struct CompiledRuleDatabase(*mut hs_database_t);

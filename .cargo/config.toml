@@ -1,5 +1,6 @@
 [build]
 incremental = false
+target-dir = "target"
 
 [target.aarch64-apple-darwin]
 rustflags = [

@@ -68,7 +68,7 @@ fn outputs_validation_errors_on_one_line() {
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert_single_line_array(&stdout);
-    assert!(stdout.contains("SQL keyword not uppercase"));
+    assert!(stdout.contains("Lowercase keyword; uppercase keywords"));
 }
 
 fn assert_single_line_array(stdout: &str) {

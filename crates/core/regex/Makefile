@@ -9,8 +9,12 @@ CMAKE ?= cmake
 CARGO ?= cargo
 CMAKE_BUILD_TYPE ?= Release
 
+VECTORSCAN_URL := $(shell git config -f $(REPO_ROOT)/.gitmodules submodule.vendor/vectorscan.url)
+VECTORSCAN_BRANCH := $(shell git config -f $(REPO_ROOT)/.gitmodules submodule.vendor/vectorscan.branch)
+
 export VECTORSCAN_BUILD_DIR := $(INSTALL_DIR)
 export VECTORSCAN_INCLUDE_DIR := $(INSTALL_DIR)/include
+export CARGO_TARGET_DIR := $(REPO_ROOT)/target
 
 CMAKE_FLAGS := \
 	-DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) \
@@ -32,8 +36,10 @@ CARGO_ARGS := -p core-regex --manifest-path $(REPO_ROOT)/Cargo.toml
 build: vectorscan
 	@$(CARGO) build $(CARGO_ARGS)
 
-sync:
-	@git -C $(REPO_ROOT) submodule update --init --remote --recursive --merge vendor/vectorscan
+sync: $(VENDOR_DIR)/CMakeLists.txt
+
+$(VENDOR_DIR)/CMakeLists.txt:
+	@git clone --depth 1 --branch $(VECTORSCAN_BRANCH) $(VECTORSCAN_URL) $(VENDOR_DIR)
 
 vectorscan: sync
 	@$(CMAKE) -S $(VENDOR_DIR) -B $(CMAKE_DIR) $(CMAKE_FLAGS)
